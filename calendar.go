@@ -23,7 +23,6 @@ type day struct {
 	date   time.Time
 	events []*ics.VEvent
 	vbox   *fyne.Container
-	cards  []*widget.Card
 }
 
 func NewCalendar(ic *ics.Calendar) *Calendar {
@@ -35,13 +34,12 @@ func NewCalendar(ic *ics.Calendar) *Calendar {
 
 	c.arrangeDays()
 
-	c.agenda.Layout = layout.NewVBoxLayout()
-
 	c.tabs = container.NewAppTabs(
 		container.NewTabItem("Agenda", container.NewVScroll(&c.agenda)),
 		container.NewTabItem("Week", container.NewVScroll(&c.agenda)),
 	)
 
+	c.agenda.Layout = layout.NewVBoxLayout()
 	c.tabs.OnSelected = func(ti *container.TabItem) {
 		switch ti.Text {
 		case "Agenda":
@@ -64,30 +62,13 @@ func (c *Calendar) arrangeDays() {
 		}
 
 		for _, e := range events {
-			ec := eventCard(e)
-			d.cards = append(d.cards, ec)
+			ec := NewEvent(e)
 			d.vbox.Add(ec)
 		}
 
 		c.agenda.Add(d.vbox)
 		c.days[t] = d
 	}
-}
-
-func eventCard(e *ics.VEvent) *widget.Card {
-	t, err := e.GetStartAt()
-	if err != nil {
-		panic(err)
-	}
-	card := widget.NewCard(
-		t.String(),
-		"hello",
-		widget.NewRichTextFromMarkdown(
-			"text",
-		),
-	)
-
-	return card
 }
 
 func (c *Calendar) CreateRenderer() fyne.WidgetRenderer {

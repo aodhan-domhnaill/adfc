@@ -5,7 +5,6 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
-	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
 	ics "github.com/arran4/golang-ical"
 )
@@ -14,79 +13,137 @@ type Calendar struct {
 	*ics.Calendar
 	widget.BaseWidget
 
-	tabs   *container.AppTabs
-	days   map[time.Time]day
-	agenda fyne.Container
+	layout *CalendarLayout
+
+	tabs *container.AppTabs
+	box  *fyne.Container
+
+	focusDate time.Time
 }
 
-type day struct {
-	date   time.Time
-	events []*ics.VEvent
-	vbox   *fyne.Container
+type CalendarMode int
+
+const (
+	DayMode   CalendarMode = 0
+	WeekMode               = 1
+	MonthMode              = 2
+)
+
+type CalendarLayout struct {
+	FocusDate time.Time
+	Mode      CalendarMode
 }
 
-func NewCalendar(ic *ics.Calendar) *Calendar {
+func NewCalendar(ic *ics.Calendar, focus time.Time) *Calendar {
+	layout := &CalendarLayout{
+		Mode: DayMode,
+	}
 	c := &Calendar{
 		Calendar: ic,
-		days:     map[time.Time]day{},
+		layout:   layout,
+		box:      container.New(layout),
 	}
 	c.ExtendBaseWidget(c)
 
-	c.arrangeDays()
+	c.SetFocusDate(focus)
 
 	c.tabs = container.NewAppTabs(
-		container.NewTabItem("Agenda", container.NewVScroll(&c.agenda)),
-		container.NewTabItem("Week", container.NewVScroll(&c.agenda)),
+		container.NewTabItem("Day", container.NewVScroll(c.box)),
+		container.NewTabItem("Week", container.NewVScroll(c.box)),
 	)
 
-	c.agenda.Layout = layout.NewVBoxLayout()
 	c.tabs.OnSelected = func(ti *container.TabItem) {
 		switch ti.Text {
-		case "Agenda":
-			c.agenda.Layout = layout.NewVBoxLayout()
+		case "Day":
+			c.SetMode(DayMode)
 		case "Week":
-			c.agenda.Layout = layout.NewHBoxLayout()
+			c.SetMode(WeekMode)
 		}
 	}
 
 	return c
 }
 
-func (c *Calendar) arrangeDays() {
-	oneday := 24 * time.Hour
-	for t, events := range c.PartitionEvents(&oneday) {
-		d := day{
-			date:   t,
-			events: events,
-			vbox:   container.NewVBox(),
+func (c *Calendar) RefreshEvents() {
+	c.box.RemoveAll()
+
+	vevents := c.Events()
+	start, end := c.layout.TimeRange()
+	for d := start; d.Before(end); d = d.AddDate(0, 0, 1) {
+		day := NewDay(d)
+		eod := d.AddDate(0, 0, 1)
+
+		for _, ve := range vevents {
+			s, err := ve.GetStartAt()
+			if err != nil {
+				continue
+			}
+
+			e, err := ve.GetEndAt()
+			if err != nil {
+				continue
+			}
+
+			if (s.After(d) && s.Before(eod)) ||
+				(e.After(d) && e.Before(eod)) {
+
+				day.Add(NewEvent(ve))
+			}
 		}
 
-		for _, e := range events {
-			ec := NewEvent(e)
-			d.vbox.Add(ec)
-		}
-
-		c.agenda.Add(d.vbox)
-		c.days[t] = d
+		c.box.Add(day)
 	}
+}
+
+func (c *Calendar) SetFocusDate(t time.Time) {
+	c.layout.FocusDate = t.Truncate(24 * time.Hour)
+	c.RefreshEvents()
+}
+
+func (c *Calendar) SetMode(mode CalendarMode) {
+	c.layout.Mode = mode
+	c.RefreshEvents()
+}
+
+func (cl *CalendarLayout) TimeRange() (start time.Time, end time.Time) {
+	switch cl.Mode {
+	case DayMode:
+		start = cl.FocusDate
+		end = start.AddDate(0, 0, 1)
+	case WeekMode:
+		dow := int(cl.FocusDate.Weekday())
+		start = cl.FocusDate.AddDate(0, 0, -1*dow)
+		end = start.AddDate(0, 0, 7)
+	}
+	return
 }
 
 func (c *Calendar) CreateRenderer() fyne.WidgetRenderer {
 	return widget.NewSimpleRenderer(c.tabs)
 }
 
-func (c *Calendar) PartitionEvents(duration *time.Duration) map[time.Time][]*ics.VEvent {
-	events := map[time.Time][]*ics.VEvent{}
-
-	for _, e := range c.Calendar.Events() {
-		t, err := e.GetStartAt()
-		if err != nil {
-			fyne.LogError("unable to get start at", err)
-		} else {
-			tr := t.Truncate(*duration)
-			events[tr] = append(events[tr], e)
-		}
+func (cl *CalendarLayout) Layout(objects []fyne.CanvasObject, containerSize fyne.Size) {
+	var objSize fyne.Size
+	switch cl.Mode {
+	case DayMode:
+		objSize = containerSize
+	case WeekMode:
+		objSize = fyne.NewSize(containerSize.Width/7, containerSize.Height)
 	}
 
-	return events
+	pos := fyne.NewPos(0, 0)
+	for _, obj := range objects {
+		obj.Resize(objSize)
+		obj.Move(pos)
+
+		pos.X += objSize.Width
+		if pos.X >= containerSize.Width {
+			pos.X = 0
+			pos.Y += objSize.Height
+		}
+	}
+}
+
+func (cl *CalendarLayout) MinSize(objects []fyne.CanvasObject) fyne.Size {
+	return fyne.NewSize(0, 800)
 }

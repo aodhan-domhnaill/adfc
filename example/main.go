@@ -2,6 +2,7 @@ package main
 
 import (
 	"os"
+	"time"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
@@ -22,7 +23,7 @@ func main() {
 
 	name := "Test"
 	window := app.NewWithID(name).NewWindow(name)
-	window.SetContent(adfc.NewCalendar(cal))
+	window.SetContent(adfc.NewCalendar(cal, time.Date(2022, 11, 1, 0, 0, 0, 0, time.UTC)))
 	window.Resize(fyne.NewSize(800, 600))
 	window.ShowAndRun()
 }

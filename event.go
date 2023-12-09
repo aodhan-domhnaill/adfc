@@ -1,9 +1,9 @@
 package adfc
 
 import (
-	"time"
-
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/canvas"
+	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/widget"
 	ics "github.com/arran4/golang-ical"
 )
@@ -12,43 +12,61 @@ type Event struct {
 	*ics.VEvent
 	widget.BaseWidget
 
-	card *widget.Card
+	startAt, endAt                 *canvas.Text
+	summary, description, location *canvas.Text
 
-	startAt, endAt *time.Time
+	box *fyne.Container
+}
+
+func property(e *ics.VEvent, p ics.ComponentProperty) *canvas.Text {
+	result := canvas.Text{
+		Text:      "",
+		TextStyle: fyne.TextStyle{},
+		TextSize:  10,
+	}
+
+	r := e.GetProperty(p)
+	if r != nil {
+		result.Text = r.Value
+	}
+	return &result
 }
 
 func NewEvent(e *ics.VEvent) *Event {
 	event := &Event{
-		VEvent: e,
-		card:   &widget.Card{},
+		VEvent:      e,
+		startAt:     property(e, ics.ComponentPropertyDtStart),
+		endAt:       property(e, ics.ComponentPropertyDtStart),
+		summary:     property(e, ics.ComponentPropertySummary),
+		description: property(e, ics.ComponentPropertyDescription),
+		location:    property(e, ics.ComponentPropertyLocation),
 	}
 	event.ExtendBaseWidget(event)
 
-	startTime, err := e.GetStartAt()
-	if err == nil {
-		event.startAt = &startTime
-	}
-	endTime, err := e.GetEndAt()
-	if err == nil {
-		event.endAt = &endTime
-	}
+	event.summary.TextStyle = fyne.TextStyle{Bold: true}
+	event.startAt.TextStyle = fyne.TextStyle{Monospace: true}
+	event.description.TextStyle = fyne.TextStyle{Italic: true}
 
-	event.card.Subtitle = startTime.String() + " - " + endTime.String()
-
-	summary := e.GetProperty(ics.ComponentPropertySummary)
-	if summary != nil {
-		event.card.Title = summary.Value
-	}
-
-	description := e.GetProperty(ics.ComponentPropertyDescription)
-	location := e.GetProperty(ics.ComponentPropertyLocation)
-	if location != nil && description != nil {
-		event.card.Content = widget.NewRichTextFromMarkdown(location.Value)
-	}
+	event.box = container.NewVBox(
+		event.summary,
+		event.startAt,
+		event.description,
+		event.location,
+	)
 
 	return event
 }
 
+func (e *Event) Resize(size fyne.Size) {
+	if size.Height < 200 {
+		e.summary.TextSize = 20
+	} else if size.Height < 400 {
+		e.summary.TextSize = 30
+	} else if size.Height < 800 {
+		e.summary.TextSize = 40
+	}
+}
+
 func (e *Event) CreateRenderer() fyne.WidgetRenderer {
-	return widget.NewSimpleRenderer(e.card)
+	return widget.NewSimpleRenderer(e.box)
 }

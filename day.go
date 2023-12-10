@@ -69,7 +69,7 @@ func (dl *DayLayout) Layout(objects []fyne.CanvasObject, containerSize fyne.Size
 	for _, obj := range objects {
 		event, ok := obj.(*fyne.Container)
 		if ok {
-			eventLayout, ok := event.Layout.(*EventLayout)
+			eventLayout, ok := event.Layout.(EventLayout)
 			if ok {
 				start := eventLayout.Start()
 				end := eventLayout.End()

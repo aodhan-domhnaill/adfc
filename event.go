@@ -7,10 +7,22 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/widget"
 	ics "github.com/arran4/golang-ical"
 )
 
-type EventLayout struct {
+type EventLayout interface {
+	fyne.Layout
+	Start() time.Time
+	End() time.Time
+}
+
+type event struct {
+	widget.BaseWidget
+	*fyne.Container
+}
+
+type eventLayout struct {
 	e *ics.VEvent
 }
 
@@ -31,7 +43,7 @@ func property(e *ics.VEvent, p ics.ComponentProperty) *canvas.Text {
 
 func NewEvent(e *ics.VEvent) fyne.CanvasObject {
 	return container.New(
-		&EventLayout{e},
+		&eventLayout{e},
 		&canvas.Rectangle{
 			FillColor: color.White,
 		},
@@ -45,7 +57,7 @@ func NewEvent(e *ics.VEvent) fyne.CanvasObject {
 	)
 }
 
-func (el *EventLayout) Start() time.Time {
+func (el *eventLayout) Start() time.Time {
 	start, err := el.e.GetStartAt()
 	if err != nil {
 		fyne.LogError("error in DayLayout", err)
@@ -53,7 +65,7 @@ func (el *EventLayout) Start() time.Time {
 	return start
 }
 
-func (el *EventLayout) End() time.Time {
+func (el *eventLayout) End() time.Time {
 	end, err := el.e.GetEndAt()
 	if err != nil {
 		fyne.LogError("error in DayLayout", err)
@@ -61,7 +73,7 @@ func (el *EventLayout) End() time.Time {
 	return end
 }
 
-func (el *EventLayout) Layout(objects []fyne.CanvasObject, containerSize fyne.Size) {
+func (el *eventLayout) Layout(objects []fyne.CanvasObject, containerSize fyne.Size) {
 	for _, obj := range objects {
 		switch obj.(type) {
 		case *canvas.Rectangle, *fyne.Container:
@@ -71,6 +83,6 @@ func (el *EventLayout) Layout(objects []fyne.CanvasObject, containerSize fyne.Si
 	}
 }
 
-func (el *EventLayout) MinSize(objects []fyne.CanvasObject) fyne.Size {
+func (el *eventLayout) MinSize(objects []fyne.CanvasObject) fyne.Size {
 	return fyne.NewSize(0, 0)
 }

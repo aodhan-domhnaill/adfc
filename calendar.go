@@ -4,7 +4,9 @@ import (
 	"time"
 
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 	ics "github.com/arran4/golang-ical"
 )
@@ -70,8 +72,33 @@ func (c *Calendar) RefreshEvents() {
 	vevents := c.Events()
 	start, end := c.layout.TimeRange()
 	for d := start; d.Before(end); d = d.AddDate(0, 0, 1) {
-		day := NewDay(d)
 		eod := d.AddDate(0, 0, 1)
+		dayLayout := &TimeAlignedLayout{
+			Start:    d,
+			Duration: time.Hour * 24,
+		}
+
+		hourLines := container.New(dayLayout)
+		day := container.New(dayLayout)
+		for i := 0; i < 24; i += 1 {
+			hourLines.Add(NewTimeAlignedObject(
+				&canvas.Line{StrokeWidth: 1, StrokeColor: theme.ForegroundColor()},
+				d.Add(time.Duration(i)*time.Hour),
+				0,
+			))
+		}
+
+		dayBox := container.NewBorder(
+			&canvas.Text{
+				Text:      d.Format(time.DateOnly),
+				TextStyle: fyne.TextStyle{Bold: true},
+				TextSize:  10,
+			},
+			nil,
+			&canvas.Line{StrokeWidth: 1, StrokeColor: theme.ForegroundColor()},
+			&canvas.Line{StrokeWidth: 1, StrokeColor: theme.ForegroundColor()},
+			container.NewStack(hourLines, day),
+		)
 
 		for _, ve := range vevents {
 			s, err := ve.GetStartAt()
@@ -87,11 +114,13 @@ func (c *Calendar) RefreshEvents() {
 			if (s.After(d) && s.Before(eod)) ||
 				(e.After(d) && e.Before(eod)) {
 
-				day.Add(NewEvent(ve))
+				day.Add(NewTimeAlignedObject(
+					NewEvent(ve), s, e.Sub(s),
+				))
 			}
 		}
 
-		c.box.Add(day)
+		c.box.Add(dayBox)
 	}
 }
 
@@ -131,6 +160,7 @@ func (cl *CalendarLayout) Layout(objects []fyne.CanvasObject, containerSize fyne
 		objSize = fyne.NewSize(containerSize.Width/7, containerSize.Height)
 	}
 
+	// TODO: Add a Day object with the timeline
 	pos := fyne.NewPos(0, 0)
 	for _, obj := range objects {
 		obj.Resize(objSize)

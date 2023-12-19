@@ -1,26 +1,12 @@
 package adfc
 
 import (
-	"image/color"
-	"time"
-
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
-	"fyne.io/fyne/v2/widget"
+	"fyne.io/fyne/v2/theme"
 	ics "github.com/arran4/golang-ical"
 )
-
-type EventLayout interface {
-	fyne.Layout
-	Start() time.Time
-	End() time.Time
-}
-
-type event struct {
-	widget.BaseWidget
-	*fyne.Container
-}
 
 type eventLayout struct {
 	e *ics.VEvent
@@ -31,7 +17,7 @@ func property(e *ics.VEvent, p ics.ComponentProperty) *canvas.Text {
 		Text:      "",
 		TextStyle: fyne.TextStyle{},
 		TextSize:  10,
-		Color:     color.Black,
+		Color:     theme.ForegroundColor(),
 	}
 
 	r := e.GetProperty(p)
@@ -45,7 +31,7 @@ func NewEvent(e *ics.VEvent) fyne.CanvasObject {
 	return container.New(
 		&eventLayout{e},
 		&canvas.Rectangle{
-			FillColor: color.White,
+			FillColor: theme.ShadowColor(),
 		},
 		container.NewVBox(
 			property(e, ics.ComponentPropertySummary),
@@ -55,22 +41,6 @@ func NewEvent(e *ics.VEvent) fyne.CanvasObject {
 			property(e, ics.ComponentPropertyLocation),
 		),
 	)
-}
-
-func (el *eventLayout) Start() time.Time {
-	start, err := el.e.GetStartAt()
-	if err != nil {
-		fyne.LogError("error in DayLayout", err)
-	}
-	return start
-}
-
-func (el *eventLayout) End() time.Time {
-	end, err := el.e.GetEndAt()
-	if err != nil {
-		fyne.LogError("error in DayLayout", err)
-	}
-	return end
 }
 
 func (el *eventLayout) Layout(objects []fyne.CanvasObject, containerSize fyne.Size) {

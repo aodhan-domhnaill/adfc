@@ -7,9 +7,17 @@ import (
 	"fyne.io/fyne/v2/widget"
 )
 
+type LayoutMode uint8
+
+const (
+	VerticalMode   LayoutMode = 0
+	HorizontalMode LayoutMode = 1
+)
+
 type TimeAlignedLayout struct {
 	Start    time.Time
 	Duration time.Duration
+	Mode     LayoutMode // Default Vertical
 }
 
 type TimeAlignedObject struct {
@@ -25,20 +33,23 @@ func (tl *TimeAlignedLayout) Layout(objects []fyne.CanvasObject, containerSize f
 	for _, obj := range objects {
 		tlObj, ok := obj.(*TimeAlignedObject)
 		if ok {
-			pos := fyne.NewPos(0,
-				containerSize.Height*float32(tlObj.Start.Sub(tl.Start).Seconds()/duration))
-			if pos.Y < 0 {
-				pos.Y = 0
+			posFactor := float32(tlObj.Start.Sub(tl.Start).Seconds() / duration)
+			sizeFactor := float32(tlObj.Duration.Seconds() / duration)
+
+			if posFactor < 0 {
+				posFactor = 0
+			}
+			if sizeFactor > 1 {
+				sizeFactor = 1
 			}
 
-			size := fyne.NewSize(containerSize.Width,
-				containerSize.Height*float32(tlObj.Duration.Seconds()/duration))
-			if size.Height > containerSize.Height {
-				size.Height = containerSize.Height
+			if tl.Mode == VerticalMode {
+				obj.Move(fyne.NewPos(0, containerSize.Height*posFactor))
+				obj.Resize(fyne.NewSize(containerSize.Width, containerSize.Height*sizeFactor))
+			} else {
+				obj.Move(fyne.NewPos(containerSize.Width*posFactor, 0))
+				obj.Resize(fyne.NewSize(containerSize.Width*sizeFactor, containerSize.Height))
 			}
-
-			obj.Move(pos)
-			obj.Resize(size)
 		} else {
 			obj.Hide()
 		}

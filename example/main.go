@@ -1,6 +1,7 @@
 package main
 
 import (
+	"image/color"
 	"os"
 	"time"
 
@@ -23,7 +24,7 @@ func main() {
 
 	name := "Test"
 	window := app.NewWithID(name).NewWindow(name)
-	window.SetContent(adfc.NewCalendar(cal, time.Date(2022, 11, 1, 0, 0, 0, 0, time.UTC)))
+	window.SetContent(adfc.NewCalendar(cal, time.Date(2022, 11, 1, 0, 0, 0, 0, time.UTC), color.RGBA{R: 255, A: 255}))
 	window.Resize(fyne.NewSize(400, 800))
 	window.ShowAndRun()
 }
